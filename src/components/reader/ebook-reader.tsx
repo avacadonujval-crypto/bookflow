@@ -1048,7 +1048,7 @@ export function EbookReader({
                     setToolsOpen(false);
                   }}
                 >
-                  Activities
+                  Chapter text
                 </Button>
               </div>
             </section>
