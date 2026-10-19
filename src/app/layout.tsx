@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { AuthSessionProvider } from "@/components/providers/session-provider";
+import { ServiceWorkerRegister } from "@/components/sw-register";
 import "./globals.css";
 
 export const metadata: Metadata = {
@@ -15,7 +16,10 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
     <html lang="en" className="h-full antialiased">
       <body className="type-medium min-h-full bg-background font-sans text-foreground">
-        <AuthSessionProvider>{children}</AuthSessionProvider>
+        <AuthSessionProvider>
+          <ServiceWorkerRegister />
+          {children}
+        </AuthSessionProvider>
       </body>
     </html>
   );

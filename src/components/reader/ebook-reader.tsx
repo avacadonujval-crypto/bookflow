@@ -26,6 +26,7 @@ import { Badge } from "@/components/ui/badge";
 import { Modal } from "@/components/ui/modal";
 import { ReaderAIPanel } from "@/components/reader/reader-ai-panel";
 import { AudioOverviewBar } from "@/components/reader/audio-overview-bar";
+import { PdfViewerBoundary } from "@/components/reader/pdf-viewer-boundary";
 
 /** react-pdf touches `window` at import time — never SSR it. */
 const PdfViewer = dynamic(
@@ -547,10 +548,12 @@ export function EbookReader({
           >
           {showingPdf ? (
             <div data-testid="reader-chapter" className="flex min-h-0 flex-1 flex-col">
-              <PdfViewer
-                fileUrl={fileUrl!}
-                className="min-h-[calc(100dvh-7rem)]"
-              />
+              <PdfViewerBoundary fileUrl={fileUrl!}>
+                <PdfViewer
+                  fileUrl={fileUrl!}
+                  className="min-h-[calc(100dvh-7rem)]"
+                />
+              </PdfViewerBoundary>
             </div>
           ) : currentChapter ? (
             <article
