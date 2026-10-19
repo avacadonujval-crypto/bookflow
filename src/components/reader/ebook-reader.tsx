@@ -550,9 +550,10 @@ export function EbookReader({
             </p>
           )}
 
-          {currentChapter && chapterQuestions.length > 0 ? (
+          {/* Keep quizzes in chapter-text mode so they don't cover the PDF canvas */}
+          {!showingPdf && currentChapter && chapterQuestions.length > 0 ? (
             <section
-              className="mt-10 rounded-xl border border-black/10 p-5"
+              className="mt-10 rounded-xl border border-black/10 bg-white p-5"
               aria-label="Chapter activities"
             >
               <h2 className="text-lg font-semibold">Chapter check-in</h2>
@@ -1051,6 +1052,9 @@ export function EbookReader({
                   Chapter text
                 </Button>
               </div>
+              <p className="text-[12px] text-muted-foreground">
+                Chapter check-in quizzes live in Chapter text view.
+              </p>
             </section>
           ) : null}
 
