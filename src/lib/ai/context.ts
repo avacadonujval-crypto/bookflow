@@ -119,9 +119,17 @@ async function extractPdf(
   }
 }
 
+function stripHtml(html: string) {
+  return html
+    .replace(/<[^>]+>/g, " ")
+    .replace(/&nbsp;/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
 /**
- * Build AI context from the book's PDF only.
- * DB chapters are not used for tutoring.
+ * Build AI context from the book PDF when available.
+ * Falls back to chapter text so demo/sample titles still tutor correctly.
  */
 export async function buildBookAIContext(params: {
   bookId: string;
@@ -137,47 +145,78 @@ export async function buildBookAIContext(params: {
       author: true,
       description: true,
       fileUrl: true,
+      chapters: {
+        orderBy: { order: "asc" },
+        select: { id: true, title: true, content: true, order: true },
+      },
     },
   });
   if (!book) return null;
 
   const pdf = await extractPdf(book.fileUrl);
-  const usableText = isUsableExtractedText(pdf.fullText);
+  const usablePdfText = isUsableExtractedText(pdf.fullText);
   const hasPdfFile = Boolean(pdf.base64);
-  // Usable if we have real text OR can send the PDF file to Gemini (scanned books).
-  const hasPdfText = usableText || hasPdfFile;
+
+  const chapterPlain = book.chapters
+    .map(
+      (c) =>
+        `## Chapter ${c.order}: ${c.title}\n${stripHtml(c.content || "")}`,
+    )
+    .join("\n\n")
+    .trim();
+  const usableChapterText = isUsableExtractedText(chapterPlain);
+
+  const bodyText = usablePdfText
+    ? pdf.fullText
+    : usableChapterText
+      ? chapterPlain
+      : "";
+  const hasPdfText = Boolean(bodyText) || hasPdfFile;
+
+  const sourceLabel = usablePdfText
+    ? "Source: extracted PDF text."
+    : hasPdfFile
+      ? "Source: PDF file attached for Gemini (scanned/image PDF — little plain text extracted)."
+      : usableChapterText
+        ? "Source: chapter text (PDF text unavailable)."
+        : "Source: no readable book content.";
 
   const fullBookText = truncate(
     [
       `Book: ${book.title}`,
       book.author ? `Author: ${book.author}` : "",
       book.description ? `Description: ${book.description}` : "",
-      usableText
-        ? "Source: extracted PDF text."
-        : hasPdfFile
-          ? "Source: PDF file attached for Gemini (scanned/image PDF — little plain text extracted)."
-          : "Source: PDF could not be read.",
+      sourceLabel,
       "",
-      "# PDF text",
-      usableText
-        ? pdf.fullText
-        : hasPdfFile
+      "# Book content",
+      bodyText ||
+        (hasPdfFile
           ? "(Plain-text extraction was empty or too thin. Read the attached PDF file directly.)"
-          : "No PDF available for this book.",
+          : "No readable content available for this book."),
     ]
       .filter(Boolean)
       .join("\n"),
   );
 
+  const focusedChapter = params.chapterId
+    ? book.chapters.find((c) => c.id === params.chapterId)
+    : book.chapters[0];
+
   return {
     bookTitle: book.title,
     author: book.author ?? undefined,
-    chapterTitle: book.title,
-    chapterContent: usableText ? pdf.fullText : "",
-    chapters: [],
+    chapterTitle: focusedChapter?.title ?? book.title,
+    chapterContent: focusedChapter
+      ? stripHtml(focusedChapter.content || "")
+      : bodyText,
+    chapters: book.chapters.map((c) => ({
+      title: c.title,
+      order: c.order,
+      content: stripHtml(c.content || ""),
+    })),
     fullBookText,
-    pdfText: usableText ? pdf.fullText : "",
-    focusedPdfText: usableText ? pdf.fullText : "",
+    pdfText: bodyText,
+    focusedPdfText: bodyText,
     hasPdfText,
     pdfFilePath: pdf.filePath ?? undefined,
     pdfBase64: pdf.base64 ?? undefined,

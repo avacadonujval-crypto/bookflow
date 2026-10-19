@@ -99,7 +99,7 @@ export async function runReaderAI(input: {
     return {
       ok: false,
       message:
-        "Could not open this book’s PDF. Re-upload the PDF file, then try again.",
+        "No readable content for this book yet. Upload a PDF (or add chapter text), then try again.",
     };
   }
 
@@ -234,7 +234,8 @@ export async function generateAudioOverview(input: {
   if (!ctx.hasPdfText) {
     return {
       ok: false,
-      message: "Could not open this book’s PDF. Re-upload it, then try again.",
+      message:
+        "No readable content for this book yet. Upload a PDF (or add chapter text), then try again.",
     };
   }
 

@@ -122,7 +122,7 @@ export async function POST(req: Request) {
   });
   if (!ctx?.hasPdfText) {
     return NextResponse.json(
-      { error: "Could not open this book’s PDF" },
+      { error: "No readable book content yet" },
       { status: 400 },
     );
   }
