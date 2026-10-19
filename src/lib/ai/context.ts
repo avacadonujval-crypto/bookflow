@@ -22,6 +22,33 @@ function resolvePdfPath(fileUrl: string | null | undefined): string | null {
   return null;
 }
 
+async function loadPdfBuffer(
+  fileUrl: string | null | undefined,
+): Promise<{ buffer: Buffer; filePath: string | null } | null> {
+  if (!fileUrl) return null;
+
+  // Remote / Blob URLs (production)
+  if (fileUrl.startsWith("http://") || fileUrl.startsWith("https://")) {
+    try {
+      const res = await fetch(fileUrl);
+      if (!res.ok) return null;
+      const ab = await res.arrayBuffer();
+      return { buffer: Buffer.from(ab), filePath: null };
+    } catch {
+      return null;
+    }
+  }
+
+  const filePath = resolvePdfPath(fileUrl);
+  if (!filePath) return null;
+  try {
+    const buffer = await readFile(/* turbopackIgnore: true */ filePath);
+    return { buffer, filePath };
+  } catch {
+    return null;
+  }
+}
+
 /** True when extracted text has real words (not just page markers). */
 function isUsableExtractedText(text: string) {
   const cleaned = text
@@ -43,13 +70,14 @@ type PdfExtraction = {
 async function extractPdf(
   fileUrl: string | null | undefined,
 ): Promise<PdfExtraction> {
-  const filePath = resolvePdfPath(fileUrl);
-  if (!filePath) {
+  const loaded = await loadPdfBuffer(fileUrl);
+  if (!loaded) {
     return { fullText: "", pages: [], filePath: null, base64: null };
   }
 
+  const { buffer, filePath } = loaded;
+
   try {
-    const buffer = await readFile(/* turbopackIgnore: true */ filePath);
     const base64 =
       buffer.byteLength > 0 && buffer.byteLength <= MAX_PDF_BYTES_FOR_GEMINI
         ? buffer.toString("base64")

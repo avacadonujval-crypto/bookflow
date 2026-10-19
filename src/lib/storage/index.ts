@@ -1,3 +1,4 @@
+import { BlobStorageAdapter } from "./blob";
 import { LocalStorageAdapter } from "./local";
 import type { StorageAdapter } from "./types";
 
@@ -5,7 +6,9 @@ let adapter: StorageAdapter | null = null;
 
 export function getStorage(): StorageAdapter {
   if (!adapter) {
-    adapter = new LocalStorageAdapter();
+    adapter = process.env.BLOB_READ_WRITE_TOKEN
+      ? new BlobStorageAdapter()
+      : new LocalStorageAdapter();
   }
   return adapter;
 }

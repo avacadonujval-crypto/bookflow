@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState, useTransition } from "react";
+import dynamic from "next/dynamic";
 import Link from "next/link";
 import {
   Bookmark,
@@ -8,6 +9,7 @@ import {
   ChevronRight,
   FileText,
   Highlighter,
+  Loader2,
   NotebookPen,
   Search,
   SlidersHorizontal,
@@ -22,9 +24,23 @@ import { Textarea } from "@/components/ui/textarea";
 import { Progress } from "@/components/ui/progress";
 import { Badge } from "@/components/ui/badge";
 import { Modal } from "@/components/ui/modal";
-import { PdfViewer } from "@/components/reader/pdf-viewer";
 import { ReaderAIPanel } from "@/components/reader/reader-ai-panel";
 import { AudioOverviewBar } from "@/components/reader/audio-overview-bar";
+
+/** react-pdf touches `window` at import time — never SSR it. */
+const PdfViewer = dynamic(
+  () =>
+    import("@/components/reader/pdf-viewer").then((m) => m.PdfViewer),
+  {
+    ssr: false,
+    loading: () => (
+      <div className="flex h-full min-h-[50vh] items-center justify-center gap-2 text-sm text-muted-foreground">
+        <Loader2 className="h-4 w-4 animate-spin" />
+        Loading PDF viewer…
+      </div>
+    ),
+  },
+);
 import type { AnswerPayload } from "@/lib/services/quiz";
 import {
   addBookmark,
@@ -123,10 +139,13 @@ export function EbookReader({
 }: EbookReaderProps) {
   const hasPdf = Boolean(
     fileUrl &&
-      (fileType === "pdf" || fileUrl.toLowerCase().endsWith(".pdf")) &&
+      (fileType === "pdf" ||
+        fileUrl.toLowerCase().endsWith(".pdf") ||
+        fileUrl.includes("blob.vercel-storage.com")) &&
       (fileUrl.startsWith("/api/files/") ||
         fileUrl.startsWith("/sample/") ||
-        fileUrl.startsWith("http")),
+        fileUrl.startsWith("http://") ||
+        fileUrl.startsWith("https://")),
   );
   const sortedChapters = useMemo(
     () => [...chapters].sort((a, b) => a.order - b.order),

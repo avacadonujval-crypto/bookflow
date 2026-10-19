@@ -337,8 +337,14 @@ export async function uploadBookFile(
     });
 
     if (book.fileUrl) {
-      const oldKey = book.fileUrl.replace(/^\/api\/files\//, "");
-      await storage.delete(oldKey);
+      if (
+        book.fileUrl.startsWith("http://") ||
+        book.fileUrl.startsWith("https://")
+      ) {
+        await storage.delete(book.fileUrl);
+      } else if (book.fileUrl.startsWith("/api/files/")) {
+        await storage.delete(book.fileUrl.replace(/^\/api\/files\//, ""));
+      }
     }
 
     await prisma.book.update({
@@ -416,9 +422,13 @@ export async function uploadCover(
       contentType: file.type,
     });
 
-    if (book.coverUrl?.startsWith("/api/files/")) {
-      const oldKey = book.coverUrl.replace(/^\/api\/files\//, "");
-      await storage.delete(oldKey);
+    if (
+      book.coverUrl?.startsWith("http://") ||
+      book.coverUrl?.startsWith("https://")
+    ) {
+      await storage.delete(book.coverUrl);
+    } else if (book.coverUrl?.startsWith("/api/files/")) {
+      await storage.delete(book.coverUrl.replace(/^\/api\/files\//, ""));
     }
 
     await prisma.book.update({
@@ -821,9 +831,13 @@ export async function deleteBook(
     const storage = getStorage();
 
     for (const url of [book.fileUrl, book.coverUrl]) {
-      if (url?.startsWith("/api/files/")) {
-        const key = url.replace(/^\/api\/files\//, "");
-        await storage.delete(key).catch(() => undefined);
+      if (!url) continue;
+      if (url.startsWith("http://") || url.startsWith("https://")) {
+        await storage.delete(url).catch(() => undefined);
+      } else if (url.startsWith("/api/files/")) {
+        await storage
+          .delete(url.replace(/^\/api\/files\//, ""))
+          .catch(() => undefined);
       }
     }
 
