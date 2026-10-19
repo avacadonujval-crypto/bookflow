@@ -1,114 +1,38 @@
-# BookFlow MVP
+# BookFlow
 
-BookFlow is a Next.js app for digital publishing, licensing, classroom assignments, and interactive reading with quizzes and analytics.
+Next.js eBook learning platform with PDF reading, publisher upload tools, and a Gemini-powered AI tutor (Audio Overview, Live Tutor, flashcards, quizzes).
 
-## Prerequisites
+## Local development
 
-- Node.js 20+
-- Docker (for PostgreSQL)
+1. Copy env: `cp .env.example .env` and fill values
+2. Start Postgres: `docker compose up -d`
+3. Install & migrate: `npm install && npx prisma db push && npm run db:seed`
+4. Run: `npm run dev` → http://localhost:3000
 
-## Setup
+### Seed logins (password `Password123!`)
 
-1. **Start the database**
+| Role | Email |
+|------|-------|
+| Student | `student@bookflow.local` |
+| Publisher | `publisher@bookflow.local` |
+| Instructor | `instructor@bookflow.local` |
+| Org admin | `admin@bookflow.local` |
 
-   ```bash
-   docker compose up -d
-   ```
+## Production (Vercel)
 
-2. **Environment**
+Required environment variables:
 
-   ```bash
-   cp .env.example .env
-   ```
+- `DATABASE_URL` — Postgres connection string (Neon / Supabase / Railway)
+- `AUTH_SECRET` — long random string
+- `AUTH_URL` / `NEXTAUTH_URL` — your deployed HTTPS URL
+- `AUTH_TRUST_HOST=true`
+- `AI_PROVIDER=gemini` (optional)
+- `GEMINI_API_KEY` — for AI tutor / TTS
+- `UPLOAD_DIR=./uploads` (or configure durable storage for files)
 
-   Set `AUTH_SECRET` to a long random string. Defaults in `.env.example` work for local development.
-
-3. **Install dependencies**
-
-   ```bash
-   npm i
-   ```
-
-4. **Database schema and seed data**
-
-   ```bash
-   npm run db:setup
-   ```
-
-   This runs `prisma db push` and seeds demo users, books, classes, and analytics.
-
-5. **Run the dev server**
-
-   ```bash
-   npm run dev
-   ```
-
-   Open [http://localhost:3000](http://localhost:3000).
-
-## Seed credentials
-
-All demo users share the password **`Password123!`**
-
-| Role        | Email                      |
-| ----------- | -------------------------- |
-| Publisher   | `publisher@bookflow.local` |
-| Instructor  | `instructor@bookflow.local` |
-| Student     | `student@bookflow.local`   |
-| Org admin   | `admin@bookflow.local`     |
-
-The sample published book **Foundations of Interactive Learning** is assigned to the demo student and available in the library.
-
-## Scripts
-
-| Script            | Description                          |
-| ----------------- | ------------------------------------ |
-| `npm run dev`     | Next.js development server           |
-| `npm run build`   | Production build                     |
-| `npm run start`   | Start production server              |
-| `npm run lint`    | ESLint                               |
-| `npm run typecheck` | TypeScript check (`tsc --noEmit`) |
-| `npm run db:generate` | Generate Prisma client           |
-| `npm run db:migrate`  | Prisma migrate dev               |
-| `npm run db:push`     | Push schema to database          |
-| `npm run db:seed`     | Run seed script                  |
-| `npm run db:setup`    | `db:push` + seed                 |
-| `npm run test`        | Vitest unit tests                |
-| `npm run test:watch`  | Vitest watch mode                |
-| `npm run test:e2e`    | Playwright end-to-end tests      |
-
-## Testing
-
-**Unit tests** (no database required for most suites):
+After deploy, run migrations against the production database:
 
 ```bash
-npm run test
+npx prisma db push
+npm run db:seed
 ```
-
-**E2E tests** (requires database seeded and starts `npm run dev` via Playwright):
-
-```bash
-npm run db:setup
-npm run test:e2e
-```
-
-Login and reader flows use `data-testid` hooks (`login-email`, `login-password`, `login-submit`, `reader-chapter`, `quiz-submit`, `quiz-score`, `reading-progress`).
-
-## Offline / service worker
-
-`public/sw.js` is a minimal stub that caches static assets. To enable it, render `<ServiceWorkerRegister />` from `src/components/sw-register.tsx` in your root layout (optional — not enabled by default in the MVP).
-
-## Limitations (MVP)
-
-- **AI** uses a mock provider (`AI_PROVIDER=mock`); real OpenAI/Anthropic wiring is not included.
-- **File storage** is local (`UPLOAD_DIR`); no S3/cloud storage.
-- **PDF/EPUB** upload is supported at the metadata level; the reader primarily renders HTML chapter content.
-- **Auth** is credentials-based NextAuth; no SSO.
-- **Service worker** caches only static assets, not book content or API responses.
-- **E2E** assumes seed data and a running Postgres instance on `localhost:5432`.
-
-## Project layout (high level)
-
-- `src/app` — role-based routes (publisher, instructor, student, org, reader)
-- `src/lib` — auth, RBAC, Prisma, services, server actions
-- `prisma` — schema and seed
-- `e2e` — Playwright specs
