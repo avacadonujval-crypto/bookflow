@@ -1,36 +1,114 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# BookFlow MVP
 
-## Getting Started
+BookFlow is a Next.js app for digital publishing, licensing, classroom assignments, and interactive reading with quizzes and analytics.
 
-First, run the development server:
+## Prerequisites
+
+- Node.js 20+
+- Docker (for PostgreSQL)
+
+## Setup
+
+1. **Start the database**
+
+   ```bash
+   docker compose up -d
+   ```
+
+2. **Environment**
+
+   ```bash
+   cp .env.example .env
+   ```
+
+   Set `AUTH_SECRET` to a long random string. Defaults in `.env.example` work for local development.
+
+3. **Install dependencies**
+
+   ```bash
+   npm i
+   ```
+
+4. **Database schema and seed data**
+
+   ```bash
+   npm run db:setup
+   ```
+
+   This runs `prisma db push` and seeds demo users, books, classes, and analytics.
+
+5. **Run the dev server**
+
+   ```bash
+   npm run dev
+   ```
+
+   Open [http://localhost:3000](http://localhost:3000).
+
+## Seed credentials
+
+All demo users share the password **`Password123!`**
+
+| Role        | Email                      |
+| ----------- | -------------------------- |
+| Publisher   | `publisher@bookflow.local` |
+| Instructor  | `instructor@bookflow.local` |
+| Student     | `student@bookflow.local`   |
+| Org admin   | `admin@bookflow.local`     |
+
+The sample published book **Foundations of Interactive Learning** is assigned to the demo student and available in the library.
+
+## Scripts
+
+| Script            | Description                          |
+| ----------------- | ------------------------------------ |
+| `npm run dev`     | Next.js development server           |
+| `npm run build`   | Production build                     |
+| `npm run start`   | Start production server              |
+| `npm run lint`    | ESLint                               |
+| `npm run typecheck` | TypeScript check (`tsc --noEmit`) |
+| `npm run db:generate` | Generate Prisma client           |
+| `npm run db:migrate`  | Prisma migrate dev               |
+| `npm run db:push`     | Push schema to database          |
+| `npm run db:seed`     | Run seed script                  |
+| `npm run db:setup`    | `db:push` + seed                 |
+| `npm run test`        | Vitest unit tests                |
+| `npm run test:watch`  | Vitest watch mode                |
+| `npm run test:e2e`    | Playwright end-to-end tests      |
+
+## Testing
+
+**Unit tests** (no database required for most suites):
 
 ```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+npm run test
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+**E2E tests** (requires database seeded and starts `npm run dev` via Playwright):
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+```bash
+npm run db:setup
+npm run test:e2e
+```
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+Login and reader flows use `data-testid` hooks (`login-email`, `login-password`, `login-submit`, `reader-chapter`, `quiz-submit`, `quiz-score`, `reading-progress`).
 
-## Learn More
+## Offline / service worker
 
-To learn more about Next.js, take a look at the following resources:
+`public/sw.js` is a minimal stub that caches static assets. To enable it, render `<ServiceWorkerRegister />` from `src/components/sw-register.tsx` in your root layout (optional — not enabled by default in the MVP).
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+## Limitations (MVP)
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+- **AI** uses a mock provider (`AI_PROVIDER=mock`); real OpenAI/Anthropic wiring is not included.
+- **File storage** is local (`UPLOAD_DIR`); no S3/cloud storage.
+- **PDF/EPUB** upload is supported at the metadata level; the reader primarily renders HTML chapter content.
+- **Auth** is credentials-based NextAuth; no SSO.
+- **Service worker** caches only static assets, not book content or API responses.
+- **E2E** assumes seed data and a running Postgres instance on `localhost:5432`.
 
-## Deploy on Vercel
+## Project layout (high level)
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+- `src/app` — role-based routes (publisher, instructor, student, org, reader)
+- `src/lib` — auth, RBAC, Prisma, services, server actions
+- `prisma` — schema and seed
+- `e2e` — Playwright specs

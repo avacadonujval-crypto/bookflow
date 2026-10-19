@@ -1,0 +1,499 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  PUBLISHER
+  INSTRUCTOR
+  STUDENT
+  ORG_ADMIN
+}
+
+enum BookStatus {
+  DRAFT
+  PUBLISHED
+  ARCHIVED
+}
+
+enum QuestionType {
+  MULTIPLE_CHOICE
+  MULTIPLE_ANSWER
+  TRUE_FALSE
+  FILL_BLANK
+  MATCHING
+  REFLECTION
+}
+
+enum ContentBlockType {
+  TEXT
+  IMAGE
+  VIDEO
+  AUDIO
+  EXTERNAL_LINK
+  GLOSSARY
+  IMAGE_HOTSPOT
+  QUESTION
+}
+
+enum LicenseScope {
+  ORGANIZATION
+  CLASS
+  USER
+}
+
+enum AIGenerationType {
+  CHAPTER_SUMMARY
+  FLASHCARDS
+  PRACTICE_QUESTIONS
+  ASK_BOOK
+  NEXT_CHAPTER
+  READING_LEVEL
+  TEACH_BOOK
+  STUDY_GUIDE
+  EXPLAIN
+}
+
+enum AIGenerationStatus {
+  PENDING
+  COMPLETED
+  REVIEWED
+  REJECTED
+  PUBLISHED
+}
+
+model User {
+  id           String   @id @default(cuid())
+  email        String   @unique
+  name         String
+  passwordHash String
+  role         Role     @default(STUDENT)
+  avatarUrl    String?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  memberships         Membership[]
+  authoredBooks       Book[]              @relation("BookAuthor")
+  taughtClasses       Class[]             @relation("ClassInstructor")
+  enrollments         Enrollment[]
+  licenses            License[]           @relation("UserLicenses")
+  readingProgress     ReadingProgress[]
+  bookmarks           Bookmark[]
+  highlights          Highlight[]
+  notes               Note[]
+  attempts            Attempt[]
+  analyticsEvents     AnalyticsEvent[]
+  aiRequests          AIGenerationRequest[]
+  auditLogs           AuditLog[]
+  passwordResetTokens PasswordResetToken[]
+  assignmentsCreated  Assignment[]        @relation("AssignmentCreator")
+
+  @@index([role])
+  @@index([email])
+}
+
+model Organization {
+  id        String   @id @default(cuid())
+  name      String
+  slug      String   @unique
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  memberships Membership[]
+  classes     Class[]
+  licenses    License[]
+  books       Book[]
+}
+
+model Membership {
+  id             String   @id @default(cuid())
+  userId         String
+  organizationId String
+  role           Role
+  createdAt      DateTime @default(now())
+
+  user         User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, organizationId])
+  @@index([organizationId])
+}
+
+model Book {
+  id           String     @id @default(cuid())
+  title        String
+  author       String
+  description  String     @default("")
+  subject      String     @default("")
+  language     String     @default("en")
+  coverUrl     String?
+  fileUrl      String?
+  fileType     String?    // pdf | epub
+  status       BookStatus @default(DRAFT)
+  version      Int        @default(1)
+  isDemo       Boolean    @default(false)
+  organizationId String?
+  publisherId  String
+  createdAt    DateTime   @default(now())
+  updatedAt    DateTime   @updatedAt
+  publishedAt  DateTime?
+
+  organization Organization? @relation(fields: [organizationId], references: [id], onDelete: SetNull)
+  publisher    User          @relation("BookAuthor", fields: [publisherId], references: [id], onDelete: Cascade)
+  versions     BookVersion[]
+  chapters     Chapter[]
+  licenses     License[]
+  assignments  Assignment[]
+  readingProgress ReadingProgress[]
+  bookmarks    Bookmark[]
+  highlights   Highlight[]
+  notes        Note[]
+  attempts     Attempt[]
+  analyticsEvents AnalyticsEvent[]
+  aiRequests   AIGenerationRequest[]
+
+  @@index([status])
+  @@index([publisherId])
+  @@index([organizationId])
+  @@index([title])
+}
+
+model BookVersion {
+  id          String   @id @default(cuid())
+  bookId      String
+  version     Int
+  changelog   String   @default("")
+  publishedBy String?
+  createdAt   DateTime @default(now())
+
+  book Book @relation(fields: [bookId], references: [id], onDelete: Cascade)
+
+  @@unique([bookId, version])
+  @@index([bookId])
+}
+
+model Chapter {
+  id        String   @id @default(cuid())
+  bookId    String
+  title     String
+  order     Int
+  content   String   @default("") // HTML/text body for reader
+  pageStart Int?
+  pageEnd   Int?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  book          Book           @relation(fields: [bookId], references: [id], onDelete: Cascade)
+  contentBlocks ContentBlock[]
+  questions     Question[]
+  bookmarks     Bookmark[]
+  highlights    Highlight[]
+  notes         Note[]
+  readingProgress ReadingProgress[]
+
+  @@unique([bookId, order])
+  @@index([bookId])
+}
+
+model ContentBlock {
+  id        String           @id @default(cuid())
+  chapterId String
+  type      ContentBlockType
+  order     Int              @default(0)
+  title     String?
+  body      String           @default("")
+  metadata  Json?
+  createdAt DateTime         @default(now())
+  updatedAt DateTime         @updatedAt
+
+  chapter Chapter @relation(fields: [chapterId], references: [id], onDelete: Cascade)
+
+  @@index([chapterId])
+}
+
+model Question {
+  id           String       @id @default(cuid())
+  chapterId    String
+  type         QuestionType
+  prompt       String
+  explanation  String       @default("")
+  feedback     String       @default("")
+  points       Int          @default(1)
+  order        Int          @default(0)
+  correctText  String?      // fill-blank / reflection guidance
+  matchingJson Json?        // matching pairs
+  hotspotJson  Json?
+  createdAt    DateTime     @default(now())
+  updatedAt    DateTime     @updatedAt
+
+  chapter Chapter          @relation(fields: [chapterId], references: [id], onDelete: Cascade)
+  options QuestionOption[]
+  answers AttemptAnswer[]
+
+  @@index([chapterId])
+}
+
+model QuestionOption {
+  id         String  @id @default(cuid())
+  questionId String
+  label      String
+  isCorrect  Boolean @default(false)
+  order      Int     @default(0)
+
+  question Question @relation(fields: [questionId], references: [id], onDelete: Cascade)
+
+  @@index([questionId])
+}
+
+model Class {
+  id             String   @id @default(cuid())
+  name           String
+  description    String   @default("")
+  organizationId String
+  instructorId   String
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  instructor   User         @relation("ClassInstructor", fields: [instructorId], references: [id], onDelete: Cascade)
+  enrollments  Enrollment[]
+  assignments  Assignment[]
+  licenses     License[]
+
+  @@index([organizationId])
+  @@index([instructorId])
+}
+
+model Enrollment {
+  id        String   @id @default(cuid())
+  classId   String
+  userId    String
+  createdAt DateTime @default(now())
+
+  class Class @relation(fields: [classId], references: [id], onDelete: Cascade)
+  user  User  @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([classId, userId])
+  @@index([userId])
+}
+
+model Assignment {
+  id          String    @id @default(cuid())
+  classId     String
+  bookId      String
+  title       String
+  description String    @default("")
+  dueAt       DateTime?
+  createdById String
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  class     Class @relation(fields: [classId], references: [id], onDelete: Cascade)
+  book      Book  @relation(fields: [bookId], references: [id], onDelete: Cascade)
+  createdBy User  @relation("AssignmentCreator", fields: [createdById], references: [id], onDelete: Cascade)
+
+  @@index([classId])
+  @@index([bookId])
+}
+
+model License {
+  id             String       @id @default(cuid())
+  bookId         String
+  scope          LicenseScope
+  organizationId String?
+  classId        String?
+  userId         String?
+  seats          Int          @default(1)
+  seatsUsed      Int          @default(0)
+  startsAt       DateTime     @default(now())
+  endsAt         DateTime?
+  isActive       Boolean      @default(true)
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+
+  book         Book          @relation(fields: [bookId], references: [id], onDelete: Cascade)
+  organization Organization? @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  class        Class?        @relation(fields: [classId], references: [id], onDelete: Cascade)
+  user         User?         @relation("UserLicenses", fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([bookId])
+  @@index([organizationId])
+  @@index([userId])
+  @@index([classId])
+  @@index([isActive])
+}
+
+model ReadingProgress {
+  id             String   @id @default(cuid())
+  userId         String
+  bookId         String
+  chapterId      String?
+  percentComplete Float   @default(0)
+  lastLocation   String?  // chapterId or page marker
+  readingTimeSec Int      @default(0)
+  updatedAt      DateTime @updatedAt
+  createdAt      DateTime @default(now())
+
+  user    User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  book    Book     @relation(fields: [bookId], references: [id], onDelete: Cascade)
+  chapter Chapter? @relation(fields: [chapterId], references: [id], onDelete: SetNull)
+
+  @@unique([userId, bookId])
+  @@index([bookId])
+  @@index([userId])
+}
+
+model Bookmark {
+  id        String   @id @default(cuid())
+  userId    String
+  bookId    String
+  chapterId String
+  label     String   @default("")
+  location  String   @default("")
+  createdAt DateTime @default(now())
+
+  user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  book    Book    @relation(fields: [bookId], references: [id], onDelete: Cascade)
+  chapter Chapter @relation(fields: [chapterId], references: [id], onDelete: Cascade)
+
+  @@index([userId, bookId])
+}
+
+model Highlight {
+  id        String   @id @default(cuid())
+  userId    String
+  bookId    String
+  chapterId String
+  text      String
+  color     String   @default("yellow")
+  startOffset Int    @default(0)
+  endOffset Int      @default(0)
+  createdAt DateTime @default(now())
+
+  user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  book    Book    @relation(fields: [bookId], references: [id], onDelete: Cascade)
+  chapter Chapter @relation(fields: [chapterId], references: [id], onDelete: Cascade)
+
+  @@index([userId, bookId])
+  @@index([bookId])
+}
+
+model Note {
+  id        String   @id @default(cuid())
+  userId    String
+  bookId    String
+  chapterId String
+  body      String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  book    Book    @relation(fields: [bookId], references: [id], onDelete: Cascade)
+  chapter Chapter @relation(fields: [chapterId], references: [id], onDelete: Cascade)
+
+  @@index([userId, bookId])
+}
+
+model Attempt {
+  id        String   @id @default(cuid())
+  userId    String
+  bookId    String
+  chapterId String?
+  score     Float    @default(0)
+  maxScore  Float    @default(0)
+  completed Boolean  @default(false)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user    User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  book    Book            @relation(fields: [bookId], references: [id], onDelete: Cascade)
+  answers AttemptAnswer[]
+
+  @@index([userId, bookId])
+  @@index([bookId])
+}
+
+model AttemptAnswer {
+  id         String  @id @default(cuid())
+  attemptId  String
+  questionId String
+  answerJson Json
+  isCorrect  Boolean @default(false)
+  pointsEarned Float @default(0)
+
+  attempt  Attempt  @relation(fields: [attemptId], references: [id], onDelete: Cascade)
+  question Question @relation(fields: [questionId], references: [id], onDelete: Cascade)
+
+  @@index([attemptId])
+  @@index([questionId])
+}
+
+model AnalyticsEvent {
+  id        String   @id @default(cuid())
+  type      String
+  userId    String?
+  bookId    String?
+  metadata  Json?
+  createdAt DateTime @default(now())
+
+  user User? @relation(fields: [userId], references: [id], onDelete: SetNull)
+  book Book? @relation(fields: [bookId], references: [id], onDelete: SetNull)
+
+  @@index([type, createdAt])
+  @@index([bookId, createdAt])
+  @@index([userId, createdAt])
+}
+
+model AIGenerationRequest {
+  id           String             @id @default(cuid())
+  type         AIGenerationType
+  status       AIGenerationStatus @default(PENDING)
+  bookId       String?
+  chapterId    String?
+  userId       String
+  prompt       String             @default("")
+  result       String             @default("")
+  reviewedAt   DateTime?
+  createdAt    DateTime           @default(now())
+  updatedAt    DateTime           @updatedAt
+
+  book Book? @relation(fields: [bookId], references: [id], onDelete: Cascade)
+  user User  @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([bookId])
+  @@index([userId])
+  @@index([status])
+}
+
+model PasswordResetToken {
+  id        String   @id @default(cuid())
+  userId    String
+  token     String   @unique
+  expiresAt DateTime
+  usedAt    DateTime?
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([token])
+}
+
+model AuditLog {
+  id         String   @id @default(cuid())
+  userId     String?
+  action     String
+  entityType String
+  entityId   String?
+  metadata   Json?
+  createdAt  DateTime @default(now())
+
+  user User? @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  @@index([entityType, entityId])
+  @@index([createdAt])
+}

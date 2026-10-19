@@ -1,0 +1,16 @@
+services:
+  db:
+    image: postgres:16-alpine
+    container_name: bookflow-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: bookflow
+      POSTGRES_PASSWORD: bookflow
+      POSTGRES_DB: bookflow
+    ports:
+      - "5432:5432"
+    volumes:
+      - bookflow_pgdata:/var/lib/postgresql/data
+
+volumes:
+  bookflow_pgdata:

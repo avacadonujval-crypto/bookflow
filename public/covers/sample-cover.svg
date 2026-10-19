@@ -1,0 +1,18 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="400" height="560" viewBox="0 0 400 560" fill="none">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="400" y2="560" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#1e40af"/>
+      <stop offset="1" stop-color="#3b82f6"/>
+    </linearGradient>
+    <linearGradient id="shine" x1="80" y1="40" x2="320" y2="200" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#ffffff" stop-opacity="0.35"/>
+      <stop offset="1" stop-color="#ffffff" stop-opacity="0"/>
+    </linearGradient>
+  </defs>
+  <rect width="400" height="560" rx="12" fill="url(#bg)"/>
+  <rect x="24" y="24" width="352" height="512" rx="8" fill="url(#shine)"/>
+  <path d="M200 120 L280 160 V400 L200 440 L120 400 V160 Z" fill="#ffffff" fill-opacity="0.15" stroke="#ffffff" stroke-width="3"/>
+  <path d="M200 160 L248 184 V376 L200 400 L152 376 V184 Z" fill="#ffffff" fill-opacity="0.25"/>
+  <text x="200" y="500" text-anchor="middle" font-family="system-ui,Segoe UI,sans-serif" font-size="28" font-weight="700" fill="#ffffff">BookFlow</text>
+  <text x="200" y="530" text-anchor="middle" font-family="system-ui,Segoe UI,sans-serif" font-size="14" fill="#dbeafe">Publisher Edition</text>
+</svg>

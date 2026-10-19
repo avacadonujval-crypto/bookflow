@@ -1,9 +1,6 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
-  /* config options here */
-  cacheComponents: true,
-  partialPrefetching: true,
   turbopack: {
     rules: {
       "*.css": {
@@ -12,6 +9,15 @@ const nextConfig: NextConfig = {
       },
     },
   },
+  transpilePackages: ["react-pdf", "pdfjs-dist"],
+  serverExternalPackages: ["@prisma/client", "bcryptjs", "pdf-parse"],
+};
+
+// bodySizeLimit is supported at runtime; typings lag in some Next releases.
+(nextConfig as NextConfig & {
+  serverActions?: { bodySizeLimit?: string };
+}).serverActions = {
+  bodySizeLimit: "50mb",
 };
 
 export default nextConfig;
