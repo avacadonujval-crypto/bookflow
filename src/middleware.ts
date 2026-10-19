@@ -33,9 +33,23 @@ export async function middleware(req: NextRequest) {
     (p) => pathname === p || pathname.startsWith(`${p}/`),
   );
 
+  // Auth.js v5 on HTTPS uses the __Secure- cookie; salt must match the cookie name.
+  const secret = process.env.AUTH_SECRET;
+  if (!secret) {
+    console.error("[BookFlow] AUTH_SECRET is missing in middleware");
+  }
+  const isSecure =
+    req.nextUrl.protocol === "https:" ||
+    req.headers.get("x-forwarded-proto") === "https";
+  const cookieName = isSecure
+    ? "__Secure-authjs.session-token"
+    : "authjs.session-token";
   const token = await getToken({
     req,
-    secret: process.env.AUTH_SECRET,
+    secret,
+    secureCookie: isSecure,
+    cookieName,
+    salt: cookieName,
   });
 
   if (!token && !isPublic && (pathname.startsWith("/publisher") ||
